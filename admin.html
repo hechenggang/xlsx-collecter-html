@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>简单采集 - 后台管理</title>
+    <!-- import CSS -->
+    <!-- <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css"> -->
+    <link rel="stylesheet" href="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/element-ui/2.15.0/theme-chalk/index.min.css">
+</head>
+
+<body>
+    <div id="app">
+        <div v-if="status.loading" class="fixed_full flex_center bg_01 z_top">
+            <div class="lds-spinner">
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </div>
+        </div>
+
+
+        <!-- 主容器 -->
+        <el-container style="border: 1px solid #eee;">
+
+            <el-container>
+                <el-header class="flex_between">
+                    <div>
+                        <el-input style="width: auto;" placeholder="搜索" v-model="familys.keyword" clearable
+                            autofocus> </el-input>
+                        <el-button @click="get_familys()">查询</el-button>
+                        <el-button @click="output_familys()">导出</el-button>
+                    </div>
+                    <div>
+                        <span v-text="login.name"></span>
+                        <el-button v-if="!login.status" @click="login.visible = true">登录</el-button>
+                        <el-button v-if="login.status" @click="logout">退出</el-button>
+                    </div>
+                </el-header>
+
+                <el-main style="padding:5px;">
+                    <el-table height="80vh" :data="familys.table" border style="width: 100%">
+                        <el-table-column align="center" prop="index" label="序号" width="50"> </el-table-column>
+                        <el-table-column prop="A1" label="行政村"> </el-table-column>
+                        <el-table-column prop="family_id" label="户编号"> </el-table-column>
+                        <el-table-column prop="A2" label="居住地址"> </el-table-column>
+                        <el-table-column prop="A3" label="户主姓名"> </el-table-column>
+                        <el-table-column prop="A4" label="户主身份证"> </el-table-column>
+                        <el-table-column prop="A5" label="状态"> </el-table-column>
+                        <el-table-column prop="A6" label="备注"> </el-table-column>
+
+                        <el-table-column align="center" fixed="right" label="操作">
+                            <template slot-scope="scope">
+                                <el-button @click="edit_family(scope.row)">编辑</el-button>
+
+                            </template>
+                        </el-table-column>
+
+                    </el-table>
+
+                    <el-drawer title="户标注" :visible.sync="familys.is_edit" direction="rtl" size="50%">
+                        <!--:before-close="handleClose"-->
+                        <p style="margin: 15px;" v-text="familys.temp.A3"></p>
+                        <p style="margin: 15px;" v-text="familys.temp.A4"></p>
+                        <p style="margin: 15px;" v-text="familys.temp.A2"></p>
+                        <el-select style="margin: 15px;" v-model="familys.temp.A5" placeholder="请选择">
+                            <el-option style="margin: 15px;" v-for="item in status.A5_OPTIONS" :key="item" :label="item"
+                                :value="item">
+                            </el-option>
+                        </el-select>
+                        <!--<el-input style="margin: 15px;width:auto;" v-model="familys.temp.A6" placeholder="请输入备注">-->
+                            
+                        <el-autocomplete
+                          class="inline-input"
+                          v-model="familys.temp.A6"
+                          placeholder="请输入备注"
+                          :fetch-suggestions="queryA6"
+                          clearable
+                        ></el-autocomplete>
+                        
+                        </el-input>
+                        <el-button style="margin: 15px;" @click="update_family(familys.temp)">保存</el-button>
+                    </el-drawer>
+
+                    <div class="flex_between" style="margin-top: 10px;">
+                        <el-button @click="load_familys(sub(status.offset,50))">上一页</el-button>
+                        <el-button @click="load_familys(add(status.offset,50))">下一页</el-button>
+                    </div>
+                </el-main>
+            </el-container>
+        </el-container>
+    </div>
+</body>
+
+<!-- import Vue before Element -->
+<!-- <script src="https://unpkg.com/vue/dist/vue.js"></script> -->
+<script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/vue/2.6.14/vue.min.js"></script>
+<!-- import JavaScript -->
+<!-- <script src="https://unpkg.com/element-ui/lib/index.js"></script> -->
+<script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/element-ui/2.15.0/index.min.js"></script>
+<!-- <script src="https://unpkg.com/axios/dist/axios.min.js"></script> -->
+<script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/axios/0.21.1/axios.min.js"></script>
+<script>
+    // 获取 管理凭证
+    // 获取 所有已创建项目
+    // 提供 新建表单，管理表单
+    const x_api_code = window.location.href.split("code=")[1]
+    if (x_api_code==undefined){
+        window.location.assign("")
+    }
+    new Vue({
+        el: '#app',
+        mounted: function () {
+            this.familys.table = [];
+            this.load_familys(this.status.offset);
+        },
+        data: function () {
+            return {
+                login: {
+                    power: "",
+                    password: "",
+                    visible: false,
+                    name: "请登录",
+                    status: false
+                },
+                status: {
+                    loading: false,
+                    A5_OPTIONS: ['正常', '空挂户'],
+                    offset: 0
+                },
+                
+                api: {
+                    // login: "http://127.0.0.1:8080/api/user/",
+                    // family: "http://127.0.0.1:8080/api/family/",
+                    // familys: "http://127.0.0.1:8080/api/familys/",
+                    // file: "http://127.0.0.1:8080/api/file/",
+                    login: "https://app.imhcg.cn/api/user/",
+                    familys: "https://app.imhcg.cn/api/familys/",
+                    family: "https://app.imhcg.cn/api/family/",
+                    file: "https://app.imhcg.cn/api/file/",
+                },
+                familys: {
+                    table: [],
+                    is_edit: false,
+                    temp: {},
+                    keyword: ""
+                }
+            }
+        },
+        methods: {
+            add(a, b) {
+                this.status.offset = Number(a) + Number(b);
+                return this.status.offset;
+            },
+            sub(a, b) {
+                this.status.offset = Number(a) - Number(b)
+                if (this.status.offset < 0){
+                    this.message("已经是第一页", "warning");
+                    this.status.offset = 0;
+                    return this.status.offset;
+                }else{
+                    return this.status.offset;
+                }
+            },
+            queryA6(queryString, cb){
+                cb([{"value":"长期不在本辖区生产生活，且辖区无房。"}])
+            },
+            logout() {
+                delete localStorage["x-api-token"];
+                delete localStorage["name"];
+                this.login.visible = true;
+                this.login.name = "请登录";
+                this.familys.table = [];
+            },
+            http_get: function (url, callback) {
+                this.status.loading = true;
+                console.log("开始请求数据 <- ", url);
+                axios
+                    .get(url, {
+                        headers: {
+                            "x-api-token": localStorage["x-api-token"],
+                        },
+                    })
+                    .then((response) => {
+                        callback(response);
+                    })
+                    .catch((error) => {
+                        if (error) {
+                            console.log("error:", error);
+                            if (error.response.status in { 401: "", 403: "" }) {
+                                delete localStorage["x-api-code"];
+                                location.assign("/#/login");
+                            }
+                            else {
+                                alert("错误 " + error.response.status)
+                            }
+                        }
+                    })
+                    .finally(() => {
+                        this.status.loading = false;
+                        console.log("请求完成 <- ", url);
+                    });
+            },
+            http_post: function (url, data, callback) {
+                this.status.loading = true;
+                console.log("开始请求数据 <- ", url);
+                axios({
+                    method: 'post',
+                    url: url,
+                    data: data,
+                    headers: {
+                        "x-api-token": localStorage["x-api-token"],
+                        "content-type": "application/json",
+                    }
+                })
+                    .then((response) => {
+                        callback(response);
+                    })
+                    .catch((error) => {
+                        if (error) {
+                            console.log("error:", error);
+                            if (error.response.status in { 401: "", 403: "" }) {
+                                delete localStorage["x-api-code"];
+                                location.assign("/#/login");
+                            }
+                            else {
+                                alert("错误 " + error.response.status)
+                            }
+                        }
+                    })
+                    .finally(() => {
+                        this.status.loading = false;
+                        console.log("请求完成 <- ", url);
+                    });
+            },
+            after_load_familys: function (response) {
+                console.log(response);
+                this.familys.table = [];
+                response.data.forEach((currentValue, index, arr)=>{
+                    currentValue.index = this.status.offset + index + 1;
+                    this.familys.table.push(currentValue);
+                })
+                this.familys.table = response.data;
+                
+            },
+            load_familys: function (offset) {
+                this.http_get(this.api.familys + "?offset=" + offset, this.after_load_familys);
+            },
+            get_familys: function () {
+                this.http_get(this.api.familys + "?keyword=" + this.familys.keyword, this.after_load_familys);
+            },
+            after_output_familys: function (response) {
+                console.log(response);
+                window.open(this.api.file + response.data.file_id);
+            },
+            output_familys: function () {
+                this.http_get(this.api.familys + "?output=true&keyword=" + this.familys.keyword, this.after_output_familys);
+            },
+            after_do_login: function (response) {
+                console.log(response);
+                if (response.data.code == 200) {
+                    localStorage["x-api-token"] = response.data.token;
+                    this.login.status = true;
+                    this.login.name = response.data.name;
+                    localStorage["name"] = response.data.name;
+                    this.login.visible = false;
+                    this.load_familys(this.status.offset);
+                }else{
+                    this.message(response.data.errmsg, "warning");
+                }
+            },
+            do_login: function () {
+                if (this.login.power.length > 3 && this.login.password.length > 3) {
+                    this.http_post(this.api.login, { "power": this.login.power, "password": this.login.password }, this.after_do_login)
+                }
+            },
+            edit_family: function (row) {
+                this.familys.is_edit = true;
+                this.familys.temp = row;
+                console.log(row);
+            },
+            after_update_family: function (response) {
+                console.log(response.data);
+                this.message("更新成功", "success");
+                this.load_familys(this.status.offset);
+
+            },
+            update_family: function (family) {
+                this.familys.is_edit = false;
+                this.familys.temp = {};
+                console.log(family);
+                this.http_post(this.api.family, family, this.after_update_family)
+            },
+            // handleClose(done) {
+            //     this.$confirm('确认返回？')
+            //         .then(_ => {
+            //             done();
+            //         })
+            //         .catch(_ => { });
+            // },
+            message(text, type) {
+                this.$message({
+                    showClose: true,
+                    message: text,
+                    type: type
+                });
+            },
+
+        }
+    })
+</script>
+
+<style>
+    p {
+        color: #72767b;
+    }
+    .el-header {
+        background-color: #B3C0D1;
+        color: #333;
+        line-height: 60px;
+    }
+
+    .el-aside {
+        color: #333;
+    }
+
+    .lds-spinner {
+        display: inline-block;
+        position: relative;
+        width: 40px;
+        height: 40px;
+    }
+
+    .lds-spinner div {
+        transform-origin: 20px 20px;
+        animation: lds-spinner 1.2s linear infinite;
+    }
+
+    .lds-spinner div:after {
+        content: " ";
+        display: block;
+        position: absolute;
+        top: 1.5px;
+        left: 18.5px;
+        width: 3px;
+        height: 9px;
+        border-radius: 10%;
+        background: #1A2B3C;
+    }
+
+    .lds-spinner div:nth-child(1) {
+        transform: rotate(0deg);
+        animation-delay: -1.1s;
+    }
+
+    .lds-spinner div:nth-child(2) {
+        transform: rotate(30deg);
+        animation-delay: -1s;
+    }
+
+    .lds-spinner div:nth-child(3) {
+        transform: rotate(60deg);
+        animation-delay: -0.9s;
+    }
+
+    .lds-spinner div:nth-child(4) {
+        transform: rotate(90deg);
+        animation-delay: -0.8s;
+    }
+
+    .lds-spinner div:nth-child(5) {
+        transform: rotate(120deg);
+        animation-delay: -0.7s;
+    }
+
+    .lds-spinner div:nth-child(6) {
+        transform: rotate(150deg);
+        animation-delay: -0.6s;
+    }
+
+    .lds-spinner div:nth-child(7) {
+        transform: rotate(180deg);
+        animation-delay: -0.5s;
+    }
+
+    .lds-spinner div:nth-child(8) {
+        transform: rotate(210deg);
+        animation-delay: -0.4s;
+    }
+
+    .lds-spinner div:nth-child(9) {
+        transform: rotate(240deg);
+        animation-delay: -0.3s;
+    }
+
+    .lds-spinner div:nth-child(10) {
+        transform: rotate(270deg);
+        animation-delay: -0.2s;
+    }
+
+    .lds-spinner div:nth-child(11) {
+        transform: rotate(300deg);
+        animation-delay: -0.1s;
+    }
+
+    .lds-spinner div:nth-child(12) {
+        transform: rotate(330deg);
+        animation-delay: 0s;
+    }
+
+    @keyframes lds-spinner {
+        0% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0;
+        }
+    }
+
+    .fixed_full {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .flex_center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: nowrap;
+        flex-direction: column;
+    }
+
+    .flex_between {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        flex-direction: row;
+    }
+
+    .z_top {
+
+        z-index: 999;
+    }
+    .bg_01 {
+        /*color: #333;*/
+        background-color: #ffffff95;
+    }
+</style>
+
+</html>
