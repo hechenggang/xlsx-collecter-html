@@ -39,12 +39,12 @@
                         <el-input style="width: auto;" placeholder="搜索" v-model="familys.keyword" clearable
                             autofocus> </el-input>
                         <el-button @click="get_familys()">查询</el-button>
-                        <el-button @click="output_familys()">导出</el-button>
                     </div>
                     <div>
-                        <span v-text="login.name"></span>
-                        <el-button v-if="!login.status" @click="login.visible = true">登录</el-button>
-                        <el-button v-if="login.status" @click="logout">退出</el-button>
+                        
+                        <el-button >新建表单</el-button>
+                        <el-button >数据导出</el-button>
+                        <el-button >人员管理</el-button>
                     </div>
                 </el-header>
 
@@ -116,23 +116,18 @@
     // 提供 新建表单，管理表单
     const x_api_code = window.location.href.split("code=")[1]
     if (x_api_code==undefined){
-        window.location.assign("")
+        window.location.assign("https://account.imhcg.cn/to/4798278f12f02838887fcf116c8e7d1b")
     }
+    console.log("code:",x_api_code)
     new Vue({
         el: '#app',
         mounted: function () {
-            this.familys.table = [];
-            this.load_familys(this.status.offset);
+            
+            this.load_forms();
         },
         data: function () {
             return {
-                login: {
-                    power: "",
-                    password: "",
-                    visible: false,
-                    name: "请登录",
-                    status: false
-                },
+
                 status: {
                     loading: false,
                     A5_OPTIONS: ['正常', '空挂户'],
@@ -140,20 +135,11 @@
                 },
                 
                 api: {
-                    // login: "http://127.0.0.1:8080/api/user/",
-                    // family: "http://127.0.0.1:8080/api/family/",
-                    // familys: "http://127.0.0.1:8080/api/familys/",
-                    // file: "http://127.0.0.1:8080/api/file/",
-                    login: "https://app.imhcg.cn/api/user/",
-                    familys: "https://app.imhcg.cn/api/familys/",
-                    family: "https://app.imhcg.cn/api/family/",
-                    file: "https://app.imhcg.cn/api/file/",
+                    froms: "http://127.0.0.1:8000/api/user/forms",
+                    xlsx_create: "http://127.0.0.1:8080/api/xlsx/",
                 },
-                familys: {
-                    table: [],
-                    is_edit: false,
-                    temp: {},
-                    keyword: ""
+                forms: {
+                    rows: [],
                 }
             }
         },
@@ -172,23 +158,14 @@
                     return this.status.offset;
                 }
             },
-            queryA6(queryString, cb){
-                cb([{"value":"长期不在本辖区生产生活，且辖区无房。"}])
-            },
-            logout() {
-                delete localStorage["x-api-token"];
-                delete localStorage["name"];
-                this.login.visible = true;
-                this.login.name = "请登录";
-                this.familys.table = [];
-            },
+           
             http_get: function (url, callback) {
                 this.status.loading = true;
                 console.log("开始请求数据 <- ", url);
                 axios
                     .get(url, {
                         headers: {
-                            "x-api-token": localStorage["x-api-token"],
+                            "x-api-token": x_api_code,
                         },
                     })
                     .then((response) => {
@@ -199,7 +176,7 @@
                             console.log("error:", error);
                             if (error.response.status in { 401: "", 403: "" }) {
                                 delete localStorage["x-api-code"];
-                                location.assign("/#/login");
+                                location.assign("/admin.html");
                             }
                             else {
                                 alert("错误 " + error.response.status)
@@ -219,7 +196,7 @@
                     url: url,
                     data: data,
                     headers: {
-                        "x-api-token": localStorage["x-api-token"],
+                        "x-api-token": x_api_code,
                         "content-type": "application/json",
                     }
                 })
@@ -231,7 +208,7 @@
                             console.log("error:", error);
                             if (error.response.status in { 401: "", 403: "" }) {
                                 delete localStorage["x-api-code"];
-                                location.assign("/#/login");
+                                location.assign("/admin.html");
                             }
                             else {
                                 alert("错误 " + error.response.status)
@@ -253,61 +230,10 @@
                 this.familys.table = response.data;
                 
             },
-            load_familys: function (offset) {
+            load_forms: function () {
                 this.http_get(this.api.familys + "?offset=" + offset, this.after_load_familys);
             },
-            get_familys: function () {
-                this.http_get(this.api.familys + "?keyword=" + this.familys.keyword, this.after_load_familys);
-            },
-            after_output_familys: function (response) {
-                console.log(response);
-                window.open(this.api.file + response.data.file_id);
-            },
-            output_familys: function () {
-                this.http_get(this.api.familys + "?output=true&keyword=" + this.familys.keyword, this.after_output_familys);
-            },
-            after_do_login: function (response) {
-                console.log(response);
-                if (response.data.code == 200) {
-                    localStorage["x-api-token"] = response.data.token;
-                    this.login.status = true;
-                    this.login.name = response.data.name;
-                    localStorage["name"] = response.data.name;
-                    this.login.visible = false;
-                    this.load_familys(this.status.offset);
-                }else{
-                    this.message(response.data.errmsg, "warning");
-                }
-            },
-            do_login: function () {
-                if (this.login.power.length > 3 && this.login.password.length > 3) {
-                    this.http_post(this.api.login, { "power": this.login.power, "password": this.login.password }, this.after_do_login)
-                }
-            },
-            edit_family: function (row) {
-                this.familys.is_edit = true;
-                this.familys.temp = row;
-                console.log(row);
-            },
-            after_update_family: function (response) {
-                console.log(response.data);
-                this.message("更新成功", "success");
-                this.load_familys(this.status.offset);
-
-            },
-            update_family: function (family) {
-                this.familys.is_edit = false;
-                this.familys.temp = {};
-                console.log(family);
-                this.http_post(this.api.family, family, this.after_update_family)
-            },
-            // handleClose(done) {
-            //     this.$confirm('确认返回？')
-            //         .then(_ => {
-            //             done();
-            //         })
-            //         .catch(_ => { });
-            // },
+            
             message(text, type) {
                 this.$message({
                     showClose: true,
@@ -457,7 +383,6 @@
         z-index: 999;
     }
     .bg_01 {
-        /*color: #333;*/
         background-color: #ffffff95;
     }
 </style>
