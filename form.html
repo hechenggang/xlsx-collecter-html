@@ -4,10 +4,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>简单采集</title>
+    <title>简单表单</title>
     <!-- import CSS -->
     <!-- <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css"> -->
-    <link rel="stylesheet" href="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/element-ui/2.15.0/theme-chalk/index.min.css">
+    <link rel="stylesheet"
+        href="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/element-ui/2.15.0/theme-chalk/index.min.css">
 </head>
 
 <body>
@@ -30,7 +31,7 @@
         </div>
         <!-- 登录框 -->
         <el-dialog :visible.sync="login.visible" title="请输入账号密码后点击登录">
-            <el-input placeholder="请输入账号" v-model="login.power" clearable autofocus> </el-input>
+            <el-input placeholder="请输入账号" v-model="login.account" clearable autofocus> </el-input>
             <div style="margin-top: 15px;">
                 <el-input placeholder="请输入密码" v-model="login.password" show-password></el-input>
             </div>
@@ -45,66 +46,62 @@
             <el-container>
                 <el-header class="flex_between">
                     <div>
-                        <el-input style="width: auto;" placeholder="搜索" v-model="familys.keyword" clearable
-                            autofocus> </el-input>
+                        <!-- <el-input style="width: auto;" placeholder="搜索" v-model="familys.keyword" clearable
+                            > </el-input>
                         <el-button @click="get_familys()">查询</el-button>
-                        <el-button @click="output_familys()">导出</el-button>
+                        <el-button @click="output_familys()">导出</el-button> -->
+                        <span v-text="login.name"></span>
                     </div>
                     <div>
-                        <span v-text="login.name"></span>
+
                         <el-button v-if="!login.status" @click="login.visible = true">登录</el-button>
                         <el-button v-if="login.status" @click="logout">退出</el-button>
+                        <el-button @click="newRowVisible=true,this.thisRowId = ''">新增数据</el-button>
                     </div>
                 </el-header>
 
                 <el-main style="padding:5px;">
-                    <el-table height="80vh" :data="familys.table" border style="width: 100%">
-                        <el-table-column align="center" prop="index" label="序号" width="50"> </el-table-column>
-                        <el-table-column prop="A1" label="行政村"> </el-table-column>
-                        <el-table-column prop="family_id" label="户编号"> </el-table-column>
-                        <el-table-column prop="A2" label="居住地址"> </el-table-column>
-                        <el-table-column prop="A3" label="户主姓名"> </el-table-column>
-                        <el-table-column prop="A4" label="户主身份证"> </el-table-column>
-                        <el-table-column prop="A5" label="状态"> </el-table-column>
-                        <el-table-column prop="A6" label="备注"> </el-table-column>
 
-                        <el-table-column align="center" fixed="right" label="操作">
+
+
+
+
+                    <el-table v-if="rows" :data="rows" border style="width: 100%">
+                        <el-table-column v-for="item in columns.data" :prop="item.column_name"
+                            :label="item.defalt_value">
+                        </el-table-column>
+
+
+                        <el-table-column width="270" align="center" fixed="right" label="操作">
                             <template slot-scope="scope">
-                                <el-button @click="edit_family(scope.row)">编辑</el-button>
-
+                                <el-button @click="updateRow(scope.row)">编辑</el-button>
+                                <el-button @click="deleteRow(scope.row)">删除</el-button>
+                                <el-button @click="outputRow(scope.row)">导出</el-button>
                             </template>
                         </el-table-column>
 
                     </el-table>
 
-                    <el-drawer title="户标注" :visible.sync="familys.is_edit" direction="rtl" size="50%">
-                        <!--:before-close="handleClose"-->
-                        <p style="margin: 15px;" v-text="familys.temp.A3"></p>
-                        <p style="margin: 15px;" v-text="familys.temp.A4"></p>
-                        <p style="margin: 15px;" v-text="familys.temp.A2"></p>
-                        <el-select style="margin: 15px;" v-model="familys.temp.A5" placeholder="请选择">
-                            <el-option style="margin: 15px;" v-for="item in status.A5_OPTIONS" :key="item" :label="item"
-                                :value="item">
-                            </el-option>
-                        </el-select>
-                        <!--<el-input style="margin: 15px;width:auto;" v-model="familys.temp.A6" placeholder="请输入备注">-->
-                            
-                        <el-autocomplete
-                          class="inline-input"
-                          v-model="familys.temp.A6"
-                          placeholder="请输入备注"
-                          :fetch-suggestions="queryA6"
-                          clearable
-                        ></el-autocomplete>
-                        
-                        </el-input>
-                        <el-button style="margin: 15px;" @click="update_family(familys.temp)">保存</el-button>
+
+
+                    <el-drawer v-if="thisNewRow" title="编辑" :visible.sync="newRowVisible" direction="rtl" size="50%">
+                        <el-form>
+                            <el-form-item v-for="item in columns.data" :label="item.defalt_value">
+                                <el-input v-model="thisNewRow[item.column_name]" @input="$forceUpdate()"
+                                    auto-complete="off"></el-input>
+                            </el-form-item>
+                        </el-form>
+
+
+                        <el-button v-show="thisRowId.length==0" style="margin: 15px;" @click="thisRowId='',doNewRow()">
+                            保存</el-button>
+                        <el-button v-show="thisRowId" style="margin: 15px;" @click="doUpdateRow()">更新</el-button>
                     </el-drawer>
 
-                    <div class="flex_between" style="margin-top: 10px;">
+                    <!-- <div class="flex_between" style="margin-top: 10px;">
                         <el-button @click="load_familys(sub(status.offset,50))">上一页</el-button>
                         <el-button @click="load_familys(add(status.offset,50))">下一页</el-button>
-                    </div>
+                    </div> -->
                 </el-main>
             </el-container>
         </el-container>
@@ -119,24 +116,29 @@
 <!-- <script src="https://unpkg.com/axios/dist/axios.min.js"></script> -->
 <script src="https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/axios/0.21.1/axios.min.js"></script>
 <script>
+    const form_id = window.location.href.split("form_id=")[1]
+    if (form_id == undefined) {
+        window.location.assign("/")
+    }
     new Vue({
         el: '#app',
         mounted: function () {
             console.log("mounted");
-            if (!localStorage["x-api-token"]) {
+            if (!localStorage["x-api-user-code"]) {
                 this.login.visible = true;
             } else {
                 this.login.status = true;
                 this.login.name = localStorage["name"];
                 this.familys.table = [];
-                this.load_familys(this.status.offset);
+                this.load_rows();
+                this.load_columns();
             }
 
         },
         data: function () {
             return {
                 login: {
-                    power: "",
+                    account: "",
                     password: "",
                     visible: false,
                     name: "请登录",
@@ -144,26 +146,47 @@
                 },
                 status: {
                     loading: false,
-                    A5_OPTIONS: ['正常', '空挂户'],
-                    offset: 0
+                    offset: 0,
+                    limit: 20,
                 },
-                
+
                 api: {
-                    // login: "http://127.0.0.1:8080/api/user/",
-                    // family: "http://127.0.0.1:8080/api/family/",
-                    // familys: "http://127.0.0.1:8080/api/familys/",
-                    // file: "http://127.0.0.1:8080/api/file/",
-                    login: "https://app.imhcg.cn/api/user/",
-                    familys: "https://app.imhcg.cn/api/familys/",
-                    family: "https://app.imhcg.cn/api/family/",
-                    file: "https://app.imhcg.cn/api/file/",
+                    rows: (form_id) => {
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/sheet/rows`
+                    },
+                    columns: (form_id) => {
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/sheet/columns`
+                    },
+                    form_user_login: (form_id) => {
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/user/login`
+                    },
+                    row: (form_id) => {
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/sheet/row`
+                    },
+                    update_row: (form_id, row_id) => {
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/sheet/rows/${row_id}`
+                    },
+                    delete_row: (form_id, row_id) => {
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/sheet/rows/${row_id}`
+                    },
+                    output_row: (form_id, row_id) => {
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/sheet/rows/${row_id}/xlsx`
+                    },
+
                 },
                 familys: {
                     table: [],
                     is_edit: false,
                     temp: {},
                     keyword: ""
-                }
+                },
+                rows: [],
+                columns: [],
+                newRowVisible: false,
+                thisNewRow: {},
+                thisRowId: "",
+                deleteRowPopVisible: false,
+
             }
         },
         methods: {
@@ -173,23 +196,22 @@
             },
             sub(a, b) {
                 this.status.offset = Number(a) - Number(b)
-                if (this.status.offset < 0){
+                if (this.status.offset < 0) {
                     this.message("已经是第一页", "warning");
                     this.status.offset = 0;
                     return this.status.offset;
-                }else{
+                } else {
                     return this.status.offset;
                 }
             },
-            queryA6(queryString, cb){
-                cb([{"value":"长期不在本辖区生产生活，且辖区无房。"}])
-            },
+
             logout() {
-                delete localStorage["x-api-token"];
+                delete localStorage["x-api-user-code"];
                 delete localStorage["name"];
                 this.login.visible = true;
                 this.login.name = "请登录";
-                this.familys.table = [];
+                this.rows = [];
+                this.columns = [];
             },
             http_get: function (url, callback) {
                 this.status.loading = true;
@@ -197,7 +219,7 @@
                 axios
                     .get(url, {
                         headers: {
-                            "x-api-token": localStorage["x-api-token"],
+                            "x-api-user-code": localStorage["x-api-user-code"],
                         },
                     })
                     .then((response) => {
@@ -207,8 +229,8 @@
                         if (error) {
                             console.log("error:", error);
                             if (error.response.status in { 401: "", 403: "" }) {
-                                delete localStorage["x-api-code"];
-                                location.assign("/#/login");
+                                delete localStorage["x-api-user-code"];
+                                location.assign("/form.html");
                             }
                             else {
                                 alert("错误 " + error.response.status)
@@ -228,7 +250,7 @@
                     url: url,
                     data: data,
                     headers: {
-                        "x-api-token": localStorage["x-api-token"],
+                        "x-api-user-code": localStorage["x-api-user-code"],
                         "content-type": "application/json",
                     }
                 })
@@ -239,8 +261,8 @@
                         if (error) {
                             console.log("error:", error);
                             if (error.response.status in { 401: "", 403: "" }) {
-                                delete localStorage["x-api-code"];
-                                location.assign("/#/login");
+                                delete localStorage["x-api-user-code"];
+                                location.assign("/form.html");
                             }
                             else {
                                 alert("错误 " + error.response.status)
@@ -252,64 +274,142 @@
                         console.log("请求完成 <- ", url);
                     });
             },
-            after_load_familys: function (response) {
+            // /api/xlsx/{form_id}/sheet/columns
+            after_load_rows: function (response) {
                 console.log(response);
-                this.familys.table = [];
-                response.data.forEach((currentValue, index, arr)=>{
-                    currentValue.index = this.status.offset + index + 1;
-                    this.familys.table.push(currentValue);
-                })
-                this.familys.table = response.data;
-                
+                // this.rows.data = [];
+                // response.data.forEach((currentValue, index, arr)=>{
+                //     currentValue.index = this.status.offset + index + 1;
+                //     this.familys.table.push(currentValue);
+                // })
+                this.rows = response.data.db[1];
+
             },
-            load_familys: function (offset) {
-                this.http_get(this.api.familys + "?offset=" + offset, this.after_load_familys);
+            load_rows: function () {
+                this.http_get(this.api.rows(form_id) + "?offset=" + this.status.offset + "&limit=" + this.status.limit, this.after_load_rows);
             },
-            get_familys: function () {
-                this.http_get(this.api.familys + "?keyword=" + this.familys.keyword, this.after_load_familys);
-            },
-            after_output_familys: function (response) {
+
+            after_load_columns: function (response) {
                 console.log(response);
-                window.open(this.api.file + response.data.file_id);
+                // this.rows.data = [];
+                // response.data.forEach((currentValue, index, arr)=>{
+                //     currentValue.index = this.status.offset + index + 1;
+                //     this.familys.table.push(currentValue);
+                // })
+                this.columns = response.data;
+                this.columns.data.forEach(element => {
+                    this.thisNewRow[element.column_name] = element.defalt_value + ":" + element.type;
+                });
+
             },
-            output_familys: function () {
-                this.http_get(this.api.familys + "?output=true&keyword=" + this.familys.keyword, this.after_output_familys);
+            load_columns: function () {
+                this.http_get(this.api.columns(form_id), this.after_load_columns);
             },
+
             after_do_login: function (response) {
                 console.log(response);
                 if (response.data.code == 200) {
-                    localStorage["x-api-token"] = response.data.token;
+                    localStorage["x-api-user-code"] = response.data["x-api-user-code"];
                     this.login.status = true;
                     this.login.name = response.data.name;
                     localStorage["name"] = response.data.name;
                     this.login.visible = false;
-                    this.load_familys(this.status.offset);
-                }else{
+                    this.message("欢迎你 " + response.data.name, "success");
+
+                    this.load_rows();
+                    this.load_columns();
+                } else {
                     this.message(response.data.errmsg, "warning");
                 }
             },
-            do_login: function () {
-                if (this.login.power.length > 3 && this.login.password.length > 3) {
-                    this.http_post(this.api.login, { "power": this.login.power, "password": this.login.password }, this.after_do_login)
+            do_login() {
+                if (this.login.account.length > 2 && this.login.password.length > 2) {
+                    this.http_post(this.api.form_user_login(form_id), { "account": this.login.account, "password": this.login.password }, this.after_do_login)
                 }
             },
-            edit_family: function (row) {
-                this.familys.is_edit = true;
-                this.familys.temp = row;
-                console.log(row);
+            after_doNewRow(response) {
+                if (response.data.code == 200) {
+                    this.message("保存成功", "success");
+                    this.load_rows(this.status.offset);
+                    this.newRowVisible = false;
+                    this.thisNewRow = {};
+                    this.thisRowId = "";
+                } else {
+                    this.message(response.data.errmsg, "warning");
+                }
             },
-            after_update_family: function (response) {
-                console.log(response.data);
-                this.message("更新成功", "success");
-                this.load_familys(this.status.offset);
+            doNewRow() {
+                console.log(this.thisNewRow);
+                this.http_post(this.api.row(form_id), this.thisNewRow, this.after_doNewRow)
 
             },
-            update_family: function (family) {
-                this.familys.is_edit = false;
-                this.familys.temp = {};
-                console.log(family);
-                this.http_post(this.api.family, family, this.after_update_family)
+            doUpdateRow() {
+                this.http_post(this.api.update_row(form_id, this.thisRowId), this.thisNewRow, this.after_doNewRow)
             },
+            updateRow(row) {
+                this.thisRowId = row.id;
+                console.log("update", row.id);
+                delete row["id"];
+                this.thisNewRow = row;
+                this.newRowVisible = true;
+            },
+            deleteRow(row) {
+                let ok = confirm(`确认要删除以下数据吗？\n${Object.values(row).join(" | ")} `);
+                if (ok) {
+                    axios.delete(
+                        this.api.delete_row(form_id, row.id), {
+                        headers: {
+                            "x-api-user-code": localStorage["x-api-user-code"]
+                        }
+                    }
+                    )
+                    this.load_rows();
+                }
+
+            },
+            outputRow(row) {
+                let ok = confirm(`确认要导出以下数据吗？\n${Object.values(row).join(" | ")} `);
+                if (ok) {
+                    axios.get(this.api.output_row(form_id, row.id),{
+                        responseType: 'arraybuffer',
+                        headers: {
+                            "x-api-user-code": localStorage["x-api-user-code"]
+                        }
+                    })
+                    .then((resp) => {
+                        console.log(resp);
+                        console.log(resp.headers["content-type"]);
+                        const link = document.createElement('a');
+                        link.style.display = "none";
+                        let blob = new Blob([resp.data], {type: resp.headers["content-type"]});
+                        let objectUrl = URL.createObjectURL(blob);
+                        link.href = objectUrl;
+                        link.download = '导出数据.xlsx';
+                        link.click();
+                        URL.revokeObjectURL(objectUrl);
+                        document.body.removeChild(link);
+                    })
+                }
+            },
+
+
+            // edit_family: function (row) {
+            //     this.familys.is_edit = true;
+            //     this.familys.temp = row;
+            //     console.log(row);
+            // },
+            // after_update_family: function (response) {
+            //     console.log(response.data);
+            //     this.message("更新成功", "success");
+            //     this.load_familys(this.status.offset);
+
+            // },
+            // update_family: function (family) {
+            //     this.familys.is_edit = false;
+            //     this.familys.temp = {};
+            //     console.log(family);
+            //     this.http_post(this.api.family, family, this.after_update_family)
+            // },
             // handleClose(done) {
             //     this.$confirm('确认返回？')
             //         .then(_ => {
@@ -333,6 +433,7 @@
     p {
         color: #72767b;
     }
+
     .el-header {
         background-color: #B3C0D1;
         color: #333;
@@ -465,9 +566,16 @@
 
         z-index: 999;
     }
+
     .bg_01 {
         /*color: #333;*/
         background-color: #ffffff95;
+    }
+
+    .el-drawer__body {
+        padding: 20px;
+        overflow: auto;
+
     }
 </style>
 

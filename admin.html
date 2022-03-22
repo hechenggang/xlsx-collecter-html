@@ -36,66 +36,82 @@
             <el-container>
                 <el-header class="flex_between">
                     <div>
-                        <el-input style="width: auto;" placeholder="搜索" v-model="familys.keyword" clearable
-                            autofocus> </el-input>
-                        <el-button @click="get_familys()">查询</el-button>
+                        <el-button @click="load_forms">刷新</el-button>
                     </div>
                     <div>
-                        
-                        <el-button >新建表单</el-button>
-                        <el-button >数据导出</el-button>
-                        <el-button >人员管理</el-button>
+                        <el-button @click="newFormVisible = true">新建表单</el-button>
                     </div>
+
+                    <el-dialog title="新建表单" :visible.sync="newFormVisible">
+                        <el-form >
+                            <el-form-item label="表单标题" >
+                                <el-input v-model="newFormTitle"  auto-complete="off"></el-input>
+                            </el-form-item>
+
+                            <el-form-item label="表单模板" >
+                                <el-upload
+                                    drag
+                                    ref="upload"
+                                    :auto-upload="false"
+                                    >
+                                    <i class="el-icon-upload"></i>
+                                    <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+                                    <div class="el-upload__tip" slot="tip">只能上传.xlsx文件，且不超过500kb</div>
+                                    </el-upload>
+                            </el-form-item>
+                            
+                        </el-form>
+                        <div slot="footer" class="dialog-footer">
+                            <el-button @click="newFormVisible = false">取 消</el-button>
+                            <el-button type="primary" @click="newFormVisible = false,doNewForm()">确 定</el-button>
+                        </div>
+                    </el-dialog>
+
+                    <el-dialog title="导入用户" :visible.sync="importFormUserVisible">
+                        <el-form >
+                            
+                            <el-form-item label="用户模板" >
+                                <el-upload
+                                    drag
+                                    ref="upload_user"
+                                    :auto-upload="false"
+                                    >
+                                    <i class="el-icon-upload"></i>
+                                    <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+                                    <div class="el-upload__tip" slot="tip">
+                                        <a :href="api.form_users_xlsx_demo">下载模板</a>
+                                    </div>
+                                    </el-upload>
+                            </el-form-item>
+                            
+                        </el-form>
+                        <div slot="footer" class="dialog-footer">
+                            <el-button @click="importFormUserVisible = false">取 消</el-button>
+                            <el-button type="primary" @click="importFormUserVisible = false,doImportFormUser()">确 定</el-button>
+                        </div>
+                    </el-dialog>
                 </el-header>
 
                 <el-main style="padding:5px;">
-                    <el-table height="80vh" :data="familys.table" border style="width: 100%">
-                        <el-table-column align="center" prop="index" label="序号" width="50"> </el-table-column>
-                        <el-table-column prop="A1" label="行政村"> </el-table-column>
-                        <el-table-column prop="family_id" label="户编号"> </el-table-column>
-                        <el-table-column prop="A2" label="居住地址"> </el-table-column>
-                        <el-table-column prop="A3" label="户主姓名"> </el-table-column>
-                        <el-table-column prop="A4" label="户主身份证"> </el-table-column>
-                        <el-table-column prop="A5" label="状态"> </el-table-column>
-                        <el-table-column prop="A6" label="备注"> </el-table-column>
+                    <el-table height="80vh" :data="forms.data" border style="width: 100%">
+                        <el-table-column align="center" label="表单标题">
+                            
+                            <template slot-scope="scope">
+                                <a target="_blank" :href="'/form.html?form_id='+scope.row.form_id"  >{{scope.row.form_title}}</a>
+                            </template>
+                        </el-table-column>
+                        <el-table-column align="center" prop="form_id" label="表单标识"> </el-table-column>
+                        <el-table-column align="center" prop="create_at" label="表单创建时间"> </el-table-column>
 
                         <el-table-column align="center" fixed="right" label="操作">
                             <template slot-scope="scope">
-                                <el-button @click="edit_family(scope.row)">编辑</el-button>
-
+                                <el-button @click="importFormUserVisible = true, thisRow=scope.row" >导入用户</el-button>
                             </template>
                         </el-table-column>
 
                     </el-table>
 
-                    <el-drawer title="户标注" :visible.sync="familys.is_edit" direction="rtl" size="50%">
-                        <!--:before-close="handleClose"-->
-                        <p style="margin: 15px;" v-text="familys.temp.A3"></p>
-                        <p style="margin: 15px;" v-text="familys.temp.A4"></p>
-                        <p style="margin: 15px;" v-text="familys.temp.A2"></p>
-                        <el-select style="margin: 15px;" v-model="familys.temp.A5" placeholder="请选择">
-                            <el-option style="margin: 15px;" v-for="item in status.A5_OPTIONS" :key="item" :label="item"
-                                :value="item">
-                            </el-option>
-                        </el-select>
-                        <!--<el-input style="margin: 15px;width:auto;" v-model="familys.temp.A6" placeholder="请输入备注">-->
-                            
-                        <el-autocomplete
-                          class="inline-input"
-                          v-model="familys.temp.A6"
-                          placeholder="请输入备注"
-                          :fetch-suggestions="queryA6"
-                          clearable
-                        ></el-autocomplete>
-                        
-                        </el-input>
-                        <el-button style="margin: 15px;" @click="update_family(familys.temp)">保存</el-button>
-                    </el-drawer>
 
-                    <div class="flex_between" style="margin-top: 10px;">
-                        <el-button @click="load_familys(sub(status.offset,50))">上一页</el-button>
-                        <el-button @click="load_familys(add(status.offset,50))">下一页</el-button>
-                    </div>
                 </el-main>
             </el-container>
         </el-container>
@@ -114,6 +130,7 @@
     // 获取 管理凭证
     // 获取 所有已创建项目
     // 提供 新建表单，管理表单
+    // http://127.0.0.1:5500/admin.html?code=cc9ebe6c6292e340936f098cf81e8f2ee21d3cfc5c528eb29479f23dd70ecf7d-cc244092a6c77f800141eceaea9b7271bddab4932f391272840a8d710864ba1b
     const x_api_code = window.location.href.split("code=")[1]
     if (x_api_code==undefined){
         window.location.assign("https://account.imhcg.cn/to/4798278f12f02838887fcf116c8e7d1b")
@@ -122,24 +139,30 @@
     new Vue({
         el: '#app',
         mounted: function () {
-            
             this.load_forms();
         },
         data: function () {
             return {
+                newFormVisible:false,
+                newFormTitle:"",
+                importFormUserVisible:false,
+                thisRow:[],
 
                 status: {
                     loading: false,
-                    A5_OPTIONS: ['正常', '空挂户'],
-                    offset: 0
+                    
                 },
                 
                 api: {
-                    froms: "http://127.0.0.1:8000/api/user/forms",
-                    xlsx_create: "http://127.0.0.1:8080/api/xlsx/",
+                    forms: "https://xlsx-collecter-api.imhcg.cn/api/user/forms",
+                    xlsx_create: "https://xlsx-collecter-api.imhcg.cn/api/xlsx/",
+                    form_users_import:(form_id)=>{
+                        return `https://xlsx-collecter-api.imhcg.cn/api/xlsx/${form_id}/users`
+                    },
+                    form_users_xlsx_demo:"https://xlsx-collecter-api.imhcg.cn/static/file/xlsx/users.xlsx"
                 },
                 forms: {
-                    rows: [],
+                    data: [],
                 }
             }
         },
@@ -158,6 +181,9 @@
                     return this.status.offset;
                 }
             },
+            getDate(ts){
+                return new Date(ts*1000).toLocaleString();
+            },
            
             http_get: function (url, callback) {
                 this.status.loading = true;
@@ -165,7 +191,7 @@
                 axios
                     .get(url, {
                         headers: {
-                            "x-api-token": x_api_code,
+                            "x-api-code": x_api_code,
                         },
                     })
                     .then((response) => {
@@ -188,7 +214,7 @@
                         console.log("请求完成 <- ", url);
                     });
             },
-            http_post: function (url, data, callback) {
+            http_post_json: function (url, data, callback) {
                 this.status.loading = true;
                 console.log("开始请求数据 <- ", url);
                 axios({
@@ -196,7 +222,7 @@
                     url: url,
                     data: data,
                     headers: {
-                        "x-api-token": x_api_code,
+                        "x-api-code": x_api_code,
                         "content-type": "application/json",
                     }
                 })
@@ -220,18 +246,20 @@
                         console.log("请求完成 <- ", url);
                     });
             },
-            after_load_familys: function (response) {
-                console.log(response);
-                this.familys.table = [];
-                response.data.forEach((currentValue, index, arr)=>{
-                    currentValue.index = this.status.offset + index + 1;
-                    this.familys.table.push(currentValue);
+            after_load_forms (response)  {
+                console.log(this);
+                let temp = Array();
+                response.data.forms.forEach((e)=>{
+                    console.log(this,this.getDate(e["create_at"]),e);
+                    e["create_at"] = this.getDate(e["create_at"]);
+                    temp.push(e);
                 })
-                this.familys.table = response.data;
+                this.forms.data = temp;
+                console.log(temp);
                 
             },
-            load_forms: function () {
-                this.http_get(this.api.familys + "?offset=" + offset, this.after_load_familys);
+            load_forms() {
+                this.http_get(this.api.forms,this.after_load_forms);
             },
             
             message(text, type) {
@@ -240,6 +268,42 @@
                     message: text,
                     type: type
                 });
+            },
+            doNewForm(){
+                let file = this.$refs.upload.uploadFiles[0].raw;
+                
+                console.log(this.newFormTitle,file);
+                var formData = new FormData();
+                formData.append("file", file);
+                formData.append("title", this.newFormTitle);
+                axios.post(this.api.xlsx_create, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        "x-api-code": x_api_code,
+                    }
+                }).then((resp)=>{
+                    console.log(resp);
+                    this.message("创建成功", "success");
+                    this.load_forms();
+                })
+            },
+            doImportFormUser(){
+                let file = this.$refs.upload_user.uploadFiles[0].raw;
+                console.log(file,this.thisRow);
+                let form_id = this.thisRow.form_id;
+
+                var formData = new FormData();
+                formData.append("file", file);
+                axios.post(this.api.form_users_import(form_id), formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        "x-api-code": x_api_code,
+                    }
+                }).then((resp)=>{
+                    console.log(resp);
+                    this.message("创建成功", "success");
+                    this.load_forms();
+                })
             },
 
         }
